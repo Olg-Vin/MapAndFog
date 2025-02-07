@@ -59,7 +59,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
 //    Map
-    implementation("com.yandex.android:maps.mobile:4.3.1-full")
+    implementation("com.yandex.android:maps.mobile:4.10.1-full")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
