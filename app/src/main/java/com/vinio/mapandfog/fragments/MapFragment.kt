@@ -10,16 +10,19 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.vinio.mapandfog.R
 import com.vinio.mapandfog.databinding.FragmentMapBinding
 import com.yandex.mapkit.MapKitFactory
 import com.yandex.mapkit.geometry.Point
 import com.yandex.mapkit.layers.ObjectEvent
 import com.yandex.mapkit.map.CameraPosition
+import com.yandex.mapkit.map.MapObjectCollection
+import com.yandex.mapkit.map.PlacemarkMapObject
 import com.yandex.mapkit.mapview.MapView
 import com.yandex.mapkit.user_location.UserLocationLayer
 import com.yandex.mapkit.user_location.UserLocationObjectListener
 import com.yandex.mapkit.user_location.UserLocationView
-
+import com.yandex.runtime.image.ImageProvider
 
 class MapFragment : Fragment() {
     private var _binding: FragmentMapBinding? = null
@@ -28,6 +31,9 @@ class MapFragment : Fragment() {
             ?: throw RuntimeException("FragmentGalleryBinding == null")) as FragmentMapBinding
 
     private lateinit var mapView: MapView
+    private lateinit var mapObjects: MapObjectCollection
+    private lateinit var userLocationLayer: UserLocationLayer
+    private val overlays = mutableListOf<PlacemarkMapObject>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +49,6 @@ class MapFragment : Fragment() {
         MapKitFactory.setApiKey(apiKey)
         MapKitFactory.initialize(requireContext())
     }
-
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -87,34 +92,59 @@ class MapFragment : Fragment() {
     }
 
     private fun initializeMap() {
-        // Проверяем, что карта готова
         if (::mapView.isInitialized) {
-            // Настроим карту и позицию камеры
             val targetLocation = Point(56.8584, 35.9006)
-            mapView.mapWindow.map.move(
-                CameraPosition(targetLocation, 10.0f, 0.0f, 0.0f)
-            )
+            mapView.map.move(CameraPosition(targetLocation, 10.0f, 0.0f, 0.0f))
 
-            val userLocationLayer = MapKitFactory.getInstance().createUserLocationLayer(mapView.mapWindow)
+            mapObjects = mapView.map.mapObjects
+
+            userLocationLayer = MapKitFactory.getInstance().createUserLocationLayer(mapView.mapWindow)
             userLocationLayer.isVisible = true
             userLocationLayer.isHeadingEnabled = true
             userLocationLayer.setObjectListener(object : UserLocationObjectListener {
-                override fun onObjectAdded(userLocationView: UserLocationView) {
-                    // Настройка внешнего вида метки местоположения пользователя
-                }
+                override fun onObjectAdded(userLocationView: UserLocationView) {}
 
                 override fun onObjectUpdated(userLocationView: UserLocationView, event: ObjectEvent) {
-                    // Обработка обновлений местоположения пользователя
+                    userLocationView.arrow?.geometry?.let { userLocation ->
+                        hideOverlaysNearUser(userLocation)
+                    }
                 }
 
-                override fun onObjectRemoved(userLocationView: UserLocationView) {
-                    // Обработка удаления метки местоположения пользователя
-                }
+                override fun onObjectRemoved(userLocationView: UserLocationView) {}
             })
 
+            addOverlay(Point(56.8585, 35.9010))  // Добавляем изображение в конкретную точку
         } else {
             Toast.makeText(requireContext(), "Ошибка инициализации карты!", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** Добавляем изображение (PNG) поверх карты */
+    private fun addOverlay(position: Point) {
+        val overlay = mapObjects.addPlacemark(position)
+        overlay.setIcon(ImageProvider.fromResource(requireContext(), R.drawable.fog))
+        overlays.add(overlay)
+    }
+
+    /** Скрываем изображения, если пользователь подошел к ним слишком близко */
+    private fun hideOverlaysNearUser(userLocation: Point) {
+        overlays.forEach { overlay ->
+            val distance = calculateDistance(overlay.geometry, userLocation)
+            if (distance < 50) { // Если ближе 50 метров
+                overlay.isVisible = false
+            }
+        }
+    }
+
+    /** Рассчитываем дистанцию между двумя точками */
+    private fun calculateDistance(p1: Point, p2: Point): Double {
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(
+            p1.latitude, p1.longitude,
+            p2.latitude, p2.longitude,
+            results
+        )
+        return results[0].toDouble()
     }
 
     override fun onStop() {
