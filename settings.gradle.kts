@@ -9,6 +9,7 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        maven("https://artifactory.yandex.net/artifactory/maven")
     }
 }
 dependencyResolutionManagement {
@@ -16,6 +17,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://artifactory.yandex.net/artifactory/maven")
     }
 }
 
